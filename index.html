@@ -354,6 +354,8 @@
             readonly: !createNew,
           });
 
+          $submit.prop("disabled", false);
+
           $form.submit(async (e) => {
             e.preventDefault();
 
@@ -366,33 +368,38 @@
             const newInfo = {
               ...appInfo,
               app_name: $appName.val(),
-              policy_id: $appPolicy.val(),
+              policy_id: parseInt($appPolicy.val()),
             };
 
             if (createNew) {
               newInfo.app_id = $appId.val();
             }
 
-            const result = createNew
-              ? await createApp(newInfo)
-              : await updateApp(newInfo);
+            try {
+              const result = createNew
+                ? await createApp(newInfo)
+                : await updateApp(newInfo);
 
-            if (result.error === "0") {
-              $success.show(150);
-              callback(newInfo);
-            } else {
-              let msg = "Произошла ошибка";
-
-              if (result.error === "1") {
-                if (createNew) {
-                  msg =
-                    "Произошла ошибка. Убедитесь, что введённый идентификатор не используется другим приложением.";
-                }
+              if (result.error === "0") {
+                $success.show(150);
+                callback(newInfo);
               } else {
-                msg = result.error;
-              }
+                let msg = "Произошла ошибка";
 
-              $error.text(msg).show(150);
+                if (result.error === "1") {
+                  if (createNew) {
+                    msg =
+                      "Произошла ошибка. Убедитесь, что введённый идентификатор не используется другим приложением.";
+                  }
+                } else {
+                  msg = result.error;
+                }
+
+                $error.text(msg).show(150);
+              }
+            } catch (err) {
+              $error.text("Произошла ошибка").show(150);
+              console.error(err);
             }
 
             $submit.prop("disabled", false);
