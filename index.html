@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, user-scalable=no" />
+
+    <title>Приложения</title>
+
+    <script
+      src="https://code.jquery.com/jquery-3.7.0.min.js"
+      integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g="
+      crossorigin="anonymous"
+    ></script>
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM"
+      crossorigin="anonymous"
+    />
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+  </head>
+
+  <body>
+    <main class="p-3">
+      <h1 class="mb-3">Приложения</h1>
+
+      <div class="mb-3">
+        <button class="btn btn-primary">
+          <span class="me-1">Добавить приложение</span>
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+
+      <table
+        id="app-table"
+        class="table table-striped table-hover align-middle"
+      >
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Имя приложения</th>
+            <th>Alias</th>
+            <th>Политика</th>
+            <th></th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr>
+            <td colspan="5">Загрузка ...</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </main>
+
+    <script defer>
+      (async () => {
+        /**
+         * @typedef {Object} AppList
+         * @property {string[]} agent_js_configs
+         * @property {number[]} app_table_ids
+         * @property {string[]} correlations_configs
+         * @property {string[]} ids
+         * @property {string[]} names
+         * @property {number[]} policy_ids
+         */
+
+        /**
+         * @typedef {Object} AppInfo
+         * @property {string} app_id
+         * @property {string} app_name
+         * @property {number} policy_id
+         * @property {string} agent_js_config
+         * @property {string} correlations_config
+         */
+
+        const HOST = "checkstatus.website:8099";
+
+        /**
+         * Send request to the API and get the result as JSON
+         *
+         * @param {string} endpoint
+         * @param {BodyInit} body
+         * @returns JSON response
+         */
+        async function sendRequest(endpoint, body) {
+          const r = await fetch(`http://${HOST}${endpoint}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body,
+          });
+
+          return await r.json();
+        }
+
+        /**
+         * Get app list
+         *
+         * @returns {Promise<AppList>}
+         */
+        async function getAppList() {
+          return await sendRequest("/Face/App_List", "''");
+        }
+
+        /**
+         * Collect app info from data by index
+         * @param {AppList} data
+         * @param {number} index
+         * @returns {AppInfo}
+         */
+        function collectAppInfo(data, index) {
+          return {
+            app_id: data.ids[index],
+            app_name: data.names[index],
+            policy_id: data.policy_ids[index],
+            agent_js_config: data.agent_js_configs[index],
+            correlations_config: data.correlations_configs[index],
+          };
+        }
+
+        /**
+         * @param {AppInfo} appInfo
+         * @param {string} tableIndex
+         */
+        function createTableRow(appInfo, tableIndex) {
+          const $row = $("<tr>");
+          const $id = $("<td>").text(tableIndex);
+          const $name = $("<td>").text(appInfo.app_name);
+          const $alias = $("<td>").text(appInfo.app_id);
+          const $policy = $("<td>").text(appInfo.policy_id);
+          const $actions = $("<td>");
+
+          const $edit = $("<button>").attr("type", "button").addClass("btn");
+          const $editIcon = $("<i>").addClass("fas fa-pen fa-sm");
+
+          $edit.append($editIcon);
+          $actions.append($edit);
+          $row.append($id, $name, $alias, $policy, $actions);
+
+          return $row;
+        }
+
+        async function initTable() {
+          const data = await getAppList();
+          const $tableBody = $("#app-table tbody");
+
+          $tableBody.empty();
+
+          data.app_table_ids.forEach((value, index) => {
+            const appInfo = collectAppInfo(data, index);
+            const $row = createTableRow(appInfo, value);
+
+            $tableBody.append($row);
+          });
+        }
+
+        initTable();
+      })();
+    </script>
+  </body>
+</html>
