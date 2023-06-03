@@ -25,6 +25,8 @@
       crossorigin="anonymous"
     ></script>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
@@ -47,7 +49,7 @@
 
       <table
         id="app-table"
-        class="table table-striped table-hover align-middle"
+        class="table table-striped table-hover align-middle mb-3"
       >
         <thead>
           <tr>
@@ -69,6 +71,10 @@
           </tr>
         </tbody>
       </table>
+
+      <div>
+        <canvas id="chart" height="100"></canvas>
+      </div>
     </main>
 
     <div
@@ -414,6 +420,112 @@
             },
             true
           );
+        });
+
+        const chartCanvas = document.getElementById("chart");
+
+        /**
+         * Generate integer number between `min` and `max`
+         * @param {number} min
+         * @param {number} max
+         */
+        function random(min, max) {
+          const rand = min + Math.random() * (max + 1 - min);
+          return Math.floor(rand);
+        }
+
+        /**
+         * Generate random values
+         * @param {number} count Number of values
+         */
+        function generateValues(count) {
+          /** @type {number[]} */
+          const result = [];
+
+          for (let i = 0; i < count; i++) {
+            result.push(random(100, 300));
+          }
+
+          return result;
+        }
+
+        /**
+         * Get time label in `HH:MM` format
+         * @param {number} minutes Total minutes
+         */
+        function getTimeLabel(minutes) {
+          const hours = Math.trunc((minutes / 60) % 24);
+          minutes %= 60;
+
+          return (
+            `${hours}`.padStart(2, "0") + ":" + `${minutes}`.padStart(2, "0")
+          );
+        }
+
+        /**
+         * Generate set of time labels
+         * @param {number} from Start of the range in minutes
+         * @param {number} step Step of the range in minutes
+         * @param {number} count Number of labels
+         */
+        function generateTimes(from, step, count) {
+          /** @type {string[]} */
+          const result = [];
+
+          for (let i = 0; i < count; i++) {
+            result.push(getTimeLabel(from + step * i));
+          }
+
+          return result;
+        }
+
+        /**
+         * Generate random data sets
+         * @param {number} count Number of datasets
+         */
+        function generateDatasets(count) {}
+
+        const COUNT = 100;
+
+        new Chart(chartCanvas, {
+          type: "bar",
+          data: {
+            labels: generateTimes(18 * 60, 18, COUNT),
+            datasets: [
+              {
+                label: "Приложение 1",
+                data: generateValues(COUNT),
+                borderWidth: 1,
+              },
+              {
+                label: "Приложение 2",
+                data: generateValues(COUNT),
+                borderWidth: 1,
+              },
+              {
+                label: "Приложение 3",
+                data: generateValues(COUNT),
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            plugins: {
+              title: {
+                display: true,
+                text: "Перехваченные запросы",
+              },
+            },
+            responsive: true,
+            scales: {
+              x: {
+                stacked: true,
+              },
+              y: {
+                stacked: true,
+              },
+            },
+          },
         });
       })();
     </script>
