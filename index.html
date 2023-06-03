@@ -39,7 +39,7 @@
       <h1 class="mb-3">Приложения</h1>
 
       <div class="mb-3">
-        <button class="btn btn-primary">
+        <button id="add-app" class="btn btn-primary">
           <span class="me-1">Добавить приложение</span>
           <i class="fas fa-plus"></i>
         </button>
@@ -81,7 +81,9 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h1 class="modal-title fs-5">Редактировать приложение</h1>
+            <h1 id="modal-title" class="modal-title fs-5">
+              Редактировать приложение
+            </h1>
             <button
               type="button"
               class="btn-close"
@@ -230,6 +232,14 @@
         }
 
         /**
+         * @param {AppInfo} appInfo
+         * @returns {Promise<UpdateResponse>}
+         */
+        async function createApp(appInfo) {
+          return await sendRequest("/Face/New_app", JSON.stringify(appInfo));
+        }
+
+        /**
          * Collect app info from data by index
          * @param {AppList} data
          * @param {number} index
@@ -277,8 +287,19 @@
         }
 
         async function initTable() {
-          const data = await getAppList();
           const $tableBody = $("#app-table tbody");
+
+          $tableBody.html(`
+            <tr>
+              <td colspan="5">Загрузка ...</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+          `);
+
+          const data = await getAppList();
 
           $tableBody.empty();
 
@@ -295,8 +316,9 @@
         /**
          * @param {AppInfo} appInfo
          * @param {(newInfo: AppInfo) => void} callback
+         * @param {boolean?} createNew
          */
-        function showEditModal(appInfo, callback) {
+        function showEditModal(appInfo, callback, createNew = false) {
           const $form = $("#edit-form");
           const $appName = $("#edit-modal-app-name");
           const $appId = $("#edit-modal-app-id");
@@ -306,12 +328,23 @@
           const $success = $("#edit-success");
           const $error = $("#edit-error");
 
+          const $title = $("#modal-title");
+
+          $title.text(
+            createNew ? "Добавить приложение" : "Редактировать приложение"
+          );
+
           $success.hide();
           $error.hide();
 
           $appName.val(appInfo.app_name);
           $appId.val(appInfo.app_id);
           $appPolicy.val(appInfo.policy_id);
+
+          $appId.prop({
+            disabled: !createNew,
+            readonly: !createNew,
+          });
 
           $form.submit(async (e) => {
             e.preventDefault();
@@ -328,13 +361,30 @@
               policy_id: $appPolicy.val(),
             };
 
-            const result = await updateApp(newInfo);
+            if (createNew) {
+              newInfo.app_id = $appId.val();
+            }
+
+            const result = createNew
+              ? await createApp(newInfo)
+              : await updateApp(newInfo);
 
             if (result.error === "0") {
               $success.show(150);
               callback(newInfo);
             } else {
-              $error.text(result.error).show(150);
+              let msg = "Произошла ошибка";
+
+              if (result.error === "1") {
+                if (createNew) {
+                  msg =
+                    "Произошла ошибка. Убедитесь, что введённый идентификатор не используется другим приложением.";
+                }
+              } else {
+                msg = result.error;
+              }
+
+              $error.text(msg).show(150);
             }
 
             $submit.prop("disabled", false);
@@ -343,7 +393,28 @@
           editModal.show();
         }
 
-        initTable();
+        $("#edit-modal").on("hidden.bs.modal", () => {
+          $("#edit-form").off();
+        });
+
+        await initTable();
+
+        $("#add-app").click(() => {
+          showEditModal(
+            {
+              app_id: "",
+              app_name: "",
+              policy_id: 0,
+              agent_js_config: "123123",
+              correlations_config: "321321",
+            },
+            async () => {
+              editModal.hide();
+              await initTable();
+            },
+            true
+          );
+        });
       })();
     </script>
   </body>
