@@ -19,6 +19,11 @@
       integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM"
       crossorigin="anonymous"
     />
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz"
+      crossorigin="anonymous"
+    ></script>
 
     <link
       rel="stylesheet"
@@ -66,6 +71,100 @@
       </table>
     </main>
 
+    <div
+      class="modal fade"
+      id="edit-modal"
+      tabindex="-1"
+      aria-labelledby="Edit app"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5">Редактировать приложение</h1>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+
+          <div class="modal-body">
+            <div id="edit-success" class="alert alert-success" role="alert">
+              Успешно!
+            </div>
+
+            <div id="edit-error" class="alert alert-danger" role="alert">
+              Произошла ошибка
+            </div>
+
+            <form id="edit-form">
+              <div class="mb-3">
+                <label for="edit-modal-app-name" class="form-label">
+                  Имя приложения
+                </label>
+
+                <input
+                  type="text"
+                  class="form-control"
+                  id="edit-modal-app-name"
+                  name="app-name"
+                />
+              </div>
+
+              <div class="mb-3">
+                <label for="edit-modal-app-id" class="form-label">
+                  Идентификатор
+                </label>
+
+                <input
+                  type="text"
+                  class="form-control"
+                  id="edit-modal-app-id"
+                  name="app-id"
+                  disabled
+                  readonly
+                />
+              </div>
+
+              <div class="mb-3">
+                <label for="edit-modal-app-policy" class="form-label">
+                  Политика
+                </label>
+
+                <input
+                  type="number"
+                  class="form-control"
+                  id="edit-modal-app-policy"
+                  name="app-policy"
+                />
+              </div>
+            </form>
+          </div>
+
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Закрыть
+            </button>
+
+            <button
+              type="submit"
+              class="btn btn-primary"
+              id="edit-submit"
+              form="edit-form"
+            >
+              Сохранить
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script defer>
       (async () => {
         /**
@@ -87,13 +186,18 @@
          * @property {string} correlations_config
          */
 
+        /**
+         * @typedef {Object} UpdateResponse
+         * @property {string} error
+         */
+
         const HOST = "checkstatus.website:8099";
 
         /**
          * Send request to the API and get the result as JSON
          *
          * @param {string} endpoint
-         * @param {BodyInit} body
+         * @param {string} body
          * @returns JSON response
          */
         async function sendRequest(endpoint, body) {
@@ -102,7 +206,7 @@
             headers: {
               "Content-Type": "application/json",
             },
-            body,
+            body: JSON.stringify(body),
           });
 
           return await r.json();
@@ -114,7 +218,15 @@
          * @returns {Promise<AppList>}
          */
         async function getAppList() {
-          return await sendRequest("/Face/App_List", "''");
+          return await sendRequest("/Face/App_List", "");
+        }
+
+        /**
+         * @param {AppInfo} appInfo
+         * @returns {Promise<UpdateResponse>}
+         */
+        async function updateApp(appInfo) {
+          return await sendRequest("/Face/Update_app", JSON.stringify(appInfo));
         }
 
         /**
@@ -148,6 +260,15 @@
           const $edit = $("<button>").attr("type", "button").addClass("btn");
           const $editIcon = $("<i>").addClass("fas fa-pen fa-sm");
 
+          $edit.click(() => {
+            showEditModal(appInfo, (newInfo) => {
+              $name.text(newInfo.app_name);
+              $policy.text(newInfo.policy_id);
+
+              appInfo = newInfo;
+            });
+          });
+
           $edit.append($editIcon);
           $actions.append($edit);
           $row.append($id, $name, $alias, $policy, $actions);
@@ -167,6 +288,59 @@
 
             $tableBody.append($row);
           });
+        }
+
+        const editModal = new bootstrap.Modal("#edit-modal");
+
+        /**
+         * @param {AppInfo} appInfo
+         * @param {(newInfo: AppInfo) => void} callback
+         */
+        function showEditModal(appInfo, callback) {
+          const $form = $("#edit-form");
+          const $appName = $("#edit-modal-app-name");
+          const $appId = $("#edit-modal-app-id");
+          const $appPolicy = $("#edit-modal-app-policy");
+          const $submit = $("#edit-submit");
+
+          const $success = $("#edit-success");
+          const $error = $("#edit-error");
+
+          $success.hide();
+          $error.hide();
+
+          $appName.val(appInfo.app_name);
+          $appId.val(appInfo.app_id);
+          $appPolicy.val(appInfo.policy_id);
+
+          $form.submit(async (e) => {
+            e.preventDefault();
+
+            $success.hide(150);
+            $error.hide(150);
+
+            $submit.prop("disabled", true);
+
+            /** @type {AppInfo} */
+            const newInfo = {
+              ...appInfo,
+              app_name: $appName.val(),
+              policy_id: $appPolicy.val(),
+            };
+
+            const result = await updateApp(newInfo);
+
+            if (result.error === "0") {
+              $success.show(150);
+              callback(newInfo);
+            } else {
+              $error.text(result.error).show(150);
+            }
+
+            $submit.prop("disabled", false);
+          });
+
+          editModal.show();
         }
 
         initTable();
